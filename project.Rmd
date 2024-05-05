@@ -1,0 +1,515 @@
+---
+title: "project"
+author: "Alyaqadhan Alfahdi"
+date: "2024-02-09"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(readr)
+library(broom)
+library(tidyverse)
+library(ellipse)
+library(RColorBrewer)
+library(corrplot)
+library(GGally)
+library(reshape2)
+library(fastDummies)
+library(caret)
+library(kernlab)
+library(tibble)
+```
+
+
+```{r}
+#read data
+nba_data <- read_csv("data/2023_nba_player_stats.csv")
+```
+
+
+
+In the DataFrame , there is a column named ‘Position’ that represents the position of each player. However, some rows in the ‘Position’ column have missing values (na). The goal of this code is to fill these missing values with the position.
+From ESPN (NBA Player Stat Leaders, 2023-24 Postseason - ESPN, n.d.)
+Alondes williams = SG Deonte burton = SF Frank Jackson = G Michael Foster Jr.= F Sterling Brown = SF
+
+
+```{r}
+
+nba_data <- nba_data %>%
+  mutate(POS = case_when(
+    PName == "Alondes Williams" ~ "SG",
+    PName == "Deonte Burton" ~ "SF",
+    PName == "Frank Jackson" ~ "G",
+    PName == "Michael Foster Jr." ~ "F",
+    PName == "Sterling Brown" ~ "SF",
+    TRUE ~ POS
+  ))
+
+```
+
+
+```{r}
+nba_data <- nba_data %>%
+  mutate(PPG = PTS / GP)
+
+nba_data <- nba_data %>%
+  mutate(Defens = BLK + STL)
+
+
+```
+
+
+
+```{r}
+
+nba_summary <- nba_data %>%
+  group_by(POS) %>%
+  summarise(
+    Mean_PTS = mean(PTS, na.rm = TRUE),
+    SE = sd(PTS, na.rm = TRUE) / sqrt(n()) 
+  )
+
+a <- ggplot(nba_data, aes(x = POS, y = PTS)) +
+  geom_violin(trim = FALSE, alpha = 0.7, fill = "steelblue") + # Adjusted fill color here
+  geom_point(data = nba_summary, aes(x = POS, y = Mean_PTS), color = "steelblue", size = 3) + 
+  coord_cartesian(ylim = c(0, max(nba_data$PTS))) + # Ensure y-axis starts at 0
+  labs(title = "Average Total Points by Player Position", x = "Position", y = "Average Total Points") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+b <- nba_data %>%
+  top_n(10, PTS) %>%
+  ggplot(aes(x = reorder(PName, FP), y = FP, fill = FP)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Top 10 Players by Total Points", x = "", y = "Total Points") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+
+
+
+
+
+
+```{r}
+
+best_defending_players <- nba_data %>%
+  arrange(desc(Defens)) %>%
+  slice(1:10)
+
+c<-ggplot(best_defending_players, aes(x = reorder(PName, Defens), y = Defens, fill = Defens)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() + 
+  labs(title = 'Top 10 Best Defending Players',
+       x = 'Player Name',
+       y = 'Defensive Performance (Combined Blocks and Steals)') +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        text = element_text(size = 12), 
+        axis.title = element_text(color = "#333333"), 
+        axis.text = element_text(color = "#333333")) +
+  theme(legend.position = "none") 
+```
+
+
+
+
+```{r}
+team_avg_points <- nba_data %>%
+  group_by(Team) %>%
+  summarise(Avg_Total_Points = mean(PTS, na.rm = TRUE)) %>%
+  mutate(Team = reorder(Team, Avg_Total_Points)) 
+
+
+d<-ggplot(team_avg_points, aes(x = Team, y = Avg_Total_Points)) +
+  geom_col(fill = "steelblue") + 
+  coord_flip() + 
+  labs(title = "Average Total Points Scored by Each Team",
+       x = "Team",
+       y = "Average Total Points") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+
+```{r}
+data <- nba_data %>%
+  select(Age, GP, W, L, Min, PTS, FGM, FGA, PPG, Defens,
+         `FG%`, `3PM`, `3PA`, `3P%`, FTM, FTA, `FT%`, OREB,
+         DREB, REB, AST, TOV, STL, BLK,
+         PF, FP, DD2, TD3, `+/-`) %>%
+  cor()
+
+e<-corrplot(data, method = 'square', order = 'FPC', type = 'lower', diag = FALSE, tl.col = "black", tl.cex = 0.8)
+title("Correlation Matrix", col.main = "black", font.main = 2)
+```
+
+
+
+```{r}
+sel_data <- nba_data %>%
+  select(GP, W, Min, POS, FGM, FGA, `3PM`, `3PA`,Defens, FTM, FTA,
+         DREB, REB, AST, TOV, PF, FP)
+
+
+
+
+X <- sel_data %>%
+  select(-POS)
+
+Y <- nba_data %>%
+  select(PTS)
+```
+
+
+
+
+
+```{r}
+set.seed(451)
+pca_result <- prcomp(X, scale. = TRUE)
+```
+
+```{r}
+loadings <- pca_result$rotation[, 1:5]  
+loadings
+```
+
+
+
+
+
+```{r}
+library(factoextra)
+fviz_eig(pca_result, addlabels = TRUE)
+
+```
+
+
+
+
+
+```{r}
+fviz_pca_var(pca_result, col.var = "cos2",
+            gradient.cols = c("black", "orange", "green"),
+            repel = TRUE)
+```
+
+
+
+
+```{r}
+fviz_cos2(pca_result, choice = "var", axes = 1:2)
+```
+
+
+
+```{r}
+explained_variance <- summary(pca_result)$importance[2,]
+cumulative_variance <- cumsum(explained_variance)
+
+# Find the number of PCs needed to explain at least 95% of the variance
+num_pcs <- which.min(abs(cumulative_variance - 0.95))
+print(num_pcs)
+
+# Plot to visualize
+plot(cumulative_variance, xlab = "Number of Components", ylab = "Cumulative Variance Explained", 
+     type = 'b', pch = 19, main = "PCA Cumulative Variance Explained")
+abline(h = 0.95, col = "red", lty = 2)
+abline(v = num_pcs, col = "blue", lty = 2)
+```
+
+
+
+```{r}
+X_pca <- pca_result$x
+#y <- as.factor(y)
+
+X_pca_selected <- X_pca[, 1:5]
+
+y_scaled <- scale(Y) 
+```
+
+
+
+
+```{r}
+set.seed(451)
+train_index <- createDataPartition(y_scaled, p = 0.8, list = FALSE)
+x_train <- X_pca_selected[train_index, ]
+y_train <- y_scaled[train_index]
+x_test <- X_pca_selected[-train_index, ]
+y_test <- y_scaled[-train_index]
+```
+
+
+```{r}
+train_control <- trainControl(method = "none") 
+
+set.seed(451)
+model <- train(x =x_train, y = log(y_train) , method = "lm", trControl = train_control)
+
+predictions <- predict(model, newdata = x_test)
+
+predictions_exp <- exp(predictions)
+
+
+rmse <- sqrt(mean((predictions_exp - y_test)^2))
+paste("RMSE:", rmse)
+
+rsq <- cor(predictions_exp, y_test)^2
+paste("R-squared:", rsq)
+```
+
+```{r}
+
+
+mean_y <- mean(Y$PTS, na.rm = TRUE)
+sd_y <- sd(Y$PTS, na.rm = TRUE)
+
+preds = (predictions * sd_y) + mean_y
+ys = (y_test * sd_y) + mean_y
+```
+
+
+
+
+```{r}
+
+residuals <- data.frame(x = fitted(model), y = residuals(model))
+
+
+ggplot(residuals, aes(x, y)) +
+geom_point() +
+geom_hline(yintercept = 0, linetype = "dashed") +
+labs(x = "Fitted values", y = "Residuals", title = "Residual plot")
+```
+
+
+
+```{r}
+ggplot(residuals, aes(sample = y)) +
+stat_qq() +
+stat_qq_line() +
+labs(x = "Theoretical Quantiles", y = "Sample Quantiles", title = "QQ-plot of
+Residuals")
+```
+
+
+```{r}
+
+mean_y <- mean(Y$PTS, na.rm = TRUE)
+sd_y <- sd(Y$PTS, na.rm = TRUE)
+
+preds = (predictions * sd_y) + mean_y
+ys = (y_test * sd_y) + mean_y
+```
+
+
+
+
+
+
+# RF
+
+
+```{r}
+train_control <- trainControl(method = "cv", number = 5, search = "grid") 
+
+grid <- expand.grid(mtry = c(2, 4,6,8))
+
+set.seed(451)
+model_rf <- train(x = x_train, y = y_train,
+               method = "rf",
+               trControl = train_control,
+               tuneGrid = grid,
+               ntree = 100)
+print(model_rf)
+```
+
+
+```{r}
+print(model_rf)
+```
+
+
+
+
+
+```{r}
+predictions <- predict(model_rf, newdata = x_test)
+
+# Evaluation using RMSE
+
+rmse <- sqrt(mean((predictions - y_test)^2))
+paste("RMSE:", rmse)
+rsq <- cor(predictions, y_test)^2
+paste("R-squared:", rsq)
+```
+
+
+# KNN
+
+
+```{r}
+train_control <- trainControl(method = "cv", number = 5,search = "grid")
+
+grid <- expand.grid(k = c(1, 5, 10, 15, 20))
+set.seed(451)
+model_knn <- train(x = x_train, y = y_train,
+                   method = "knn",
+                   trControl = train_control,
+                   tuneGrid = grid)
+
+print(model_knn)
+
+```
+
+
+
+```{r}
+predictions <- predict(model_knn, newdata = x_test)
+
+rmse <- sqrt(mean((predictions - y_test)^2))
+paste("RMSE:", rmse)
+rsq <- cor(predictions, y_test)^2
+paste("R-squared:", rsq)
+```
+
+#svm
+
+```{r}
+
+train_control <- trainControl(method = "cv", number = 5,search = "grid")
+
+grid <- expand.grid(C = c(0.1, 1, 10, 100,150))
+set.seed(451)
+model_svm_linear <- train(x = x_train, y = y_train,
+                          method = "svmLinear",
+                          trControl = train_control,
+                          tuneGrid = grid)
+
+print(model_svm_linear)
+
+```
+
+
+```{r}
+summary(model_svm_linear)
+```
+
+
+
+
+
+```{r}
+predictions <- predict(model_svm_linear, newdata = x_test)
+
+# Evaluation using RMSE
+
+rmse <- sqrt(mean((predictions - y_test)^2))
+paste("RMSE:", rmse)
+rsq <- cor(predictions, y_test)^2
+paste("R-squared:", rsq)
+```
+
+
+```{r}
+
+
+mean_y <- mean(Y$PTS, na.rm = TRUE)
+sd_y <- sd(Y$PTS, na.rm = TRUE)
+
+preds = (predictions * sd_y) + mean_y
+ys = (y_test * sd_y) + mean_y
+```
+
+
+
+
+
+
+
+```{r}
+results <- data.frame(Actual = ys, Predicted = round(preds))
+
+```
+
+
+```{r}
+#write.csv(results,'results.csv')
+```
+
+
+
+
+```{r}
+library(broom)
+library(kableExtra)
+results %>% select(1:2) %>% slice(1:15) %>% kable(booktabs=T)
+```
+
+
+
+
+
+
+```{r}
+
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(alpha = 0.5) +  # Plot points with some transparency
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue") + 
+  theme_minimal() +  # Use a minimal theme
+  labs(title = "Comparison of Actual vs Predicted NBA Player Scores by SVM Model",
+       x = "Actual Values",
+       y = "Predicted Values") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+```
+
+
+
+```{r}
+results$PredictionType <- ifelse(results$Predicted > results$Actual, "Over", "Under")
+
+
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(aes(color = PredictionType), alpha = 0.5) +  
+  scale_color_manual(values = c("Over" = "red", "Under" = "green")) + 
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue") + 
+  theme_minimal() +  
+  labs(title = "Comparison of Actual vs Predicted NBA Player Scores by SVM Model",
+       x = "Actual Values",
+       y = "Predicted Values") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+
+
+
