@@ -1,0 +1,186 @@
+---
+title: 'Tabels'
+author: "Alyaqadhan Alfahdi"
+date: "2024-04-12"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(knitr)
+library(kableExtra)
+```
+
+
+
+```{r}
+model_results <- data.frame(
+  Model = c("Linear Regression", "Random Forest", "K-Nearest Neighbors", "Support Vector Machine"),
+  RMSE = c(0.758, 0.136, 0.132, 0.088),
+  R_squared = c(0.596, 0.979, 0.982, 0.991),
+  stringsAsFactors = FALSE
+)
+
+best_rmse_row <- which.min(model_results$RMSE)
+best_r_squared_row <- which.max(model_results$R_squared)
+
+
+styled_table <- kable(model_results, format = "html", booktabs = TRUE, 
+                      col.names = c("Model", "RMSE", "R-squared"), 
+                      caption = "Table 1: Comparison of Model Performances") %>%
+  kable_styling(full_width = FALSE, position = "center") %>%
+  column_spec(1, bold = TRUE) %>% 
+  column_spec(2, width = "3cm") %>% 
+  column_spec(3, width = "3cm") %>% 
+  row_spec(best_rmse_row, background = "#D3D3D3", bold = TRUE, color = "black") %>%
+  row_spec(best_r_squared_row, background = "#ADD8E6", bold = TRUE, color = "black") %>%
+  add_header_above(c(" " = 1, "Performance Metrics" = 2)) 
+
+styled_table
+
+```
+
+
+
+
+```{r}
+library(readr)
+results <- read_csv("results.csv")
+```
+
+```{r}
+library(dplyr)
+results %>% select(2:3) %>% slice(1:15) %>% kable(booktabs=T , 
+                       caption = "Comparison of Actual vs Predicted NBA Player Scores by SVM Model")
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+top_rows <- results %>%
+  select(Actual = 2, Predicted = 3) %>%  
+  slice(1:10) %>%
+  mutate(Row = paste("Row", 1:10)) 
+
+bottom_rows <- results %>%
+  select(Actual = 2, Predicted = 3) %>%
+  slice((n() - 9):n()) %>%
+  mutate(Row = paste("Row", (n() - 9):n()))
+
+combined_rows <- left_join(top_rows, bottom_rows, by = "Row", suffix = c(".Top", ".Bottom"))
+
+combined_rows <- select(combined_rows, -Row)
+
+
+kable(combined_rows, format = "html", booktabs = TRUE,
+      col.names = c("Actual Top", "Predicted Top", "Actual Bottom", "Predicted Bottom"),
+      caption = "Table 2 : Side-by-Side Comparison of Actual vs Predicted NBA Player Scores by SVM Model") %>%
+  kable_styling(full_width = F, position = "center", bootstrap_options = c("striped", "hover"), 
+                font_size = 12)
+
+
+```
+
+
+```{r}
+library(dplyr)
+
+top_rows <- results %>%
+  select(Actual = 2, Predicted = 3) %>%  
+  slice(1:15) %>%
+  mutate(Row = paste("Row", 1:15))  
+
+bottom_rows <- results %>%
+  select(Actual = 2, Predicted = 3) %>%
+  slice((n() - 14):n()) %>%
+  mutate(Row = paste("Row", (n() - 14):n()))
+
+
+combined_rows <- left_join(top_rows, bottom_rows, by = "Row", suffix = c(".Top", ".Bottom")) %>%
+  select(-Row)
+
+
+kable(combined_rows, format = "html", booktabs = TRUE,
+      col.names = c("Actual Top", "Predicted Top", "Actual Bottom", "Predicted Bottom"),
+      caption = "Side-by-Side Comparison of Actual vs Predicted NBA Player Scores by SVM Model") %>%
+  kable_styling(full_width = TRUE, position = "center", font_size = 14, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE, color = "black", background = "#D3D3D3") %>%  # Styling the header row
+  scroll_box(width = "100%", height = "500px")  # Add a scroll box if table is too large
+
+```
+
+
+```{r}
+
+library(knitr)
+library(kableExtra)
+
+
+svm_results <- data.frame(
+  C = c(0.1, 1.0, 10.0, 100.0, 150.0),
+  RMSE = c(0.1210705, 0.1181809, 0.1184802, 0.1184689, 0.1184788),
+  Rsquared = c(0.9869914, 0.9873764, 0.9874071, 0.9874221, 0.9874207),
+  MAE = c(0.08637013, 0.07871229, 0.07938162, 0.07937243, 0.07933682),
+  stringsAsFactors = FALSE
+)
+
+
+kable_styled <- kable(svm_results, format = "html", caption = "Table 4:Support Vector Machines with Linear Kernel - Summary") %>%
+  kable_styling(full_width = T, position = "center", bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE) %>%
+  row_spec(which.min(svm_results$RMSE), background = "#ADD8E6")
+
+kable_styled
+```
+
+
+
+
+```{r}
+
+loadings <- data.frame(
+  PC1 = c(-0.2404014, -0.2238701, -0.2785382, -0.2768501, -0.2747804, -0.2149710, -0.2217000, -0.2423980, -0.2430607, -0.2458359, -0.2511429, -0.2392764, -0.2332951, -0.2652454, -0.2515740, -0.2834156),
+  PC2 = c(-0.18258798, -0.16035091, -0.01822179, 0.09490979, 0.19275217, 0.44944388, 0.44272050, -0.27972341, 0.14132551, 0.07993409, -0.31763395, -0.40825302, 0.20687498, 0.09987758, -0.26670257, -0.01955034),
+  PC3 = c(0.37556548, 0.41030361, 0.13912201, -0.12793823, -0.06403300, 0.33660992, 0.30871454, 0.05336185, -0.40007765, -0.41134960, -0.08744936, -0.09138419, -0.14440529, -0.19845774, 0.14894523, -0.10783159),
+  PC4 = c(0.154518623, 0.221219403, 0.020255836, -0.120190220, -0.102725248, -0.259172312, -0.239832494, 0.075611559, -0.115392892, -0.122412280, -0.259062369, -0.257859765, 0.735915845, 0.260254066, 0.001426828, 0.012604977),
+  PC5 = c(-0.3072308330, -0.5320151301, 0.0700738956, 0.0001709937, 0.0198099747, 0.1414166147, 0.1288544142, 0.2027729946, -0.4195098958, -0.3935715343, 0.2317885185, 0.2132048207, 0.2706783655, 0.1381562212, 0.0914955991, 0.0935554022),
+  row.names = c("GP", "W", "Min", "FGM", "FGA", "3PM", "3PA", "DEFENS", "FTM", "FTA", "DREB", "REB", "AST", "TOV", "PF", "FP")
+)
+
+kable_styled <- kable(loadings, format = "html", digits = 2, align = 'c', 
+                      caption = "Table 3: Loadings of the First Five Principal Components") %>%
+  kable_styling(full_width = T, bootstrap_options = c("striped", "hover")) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#555555")  # Header row style
+
+kable_styled
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
